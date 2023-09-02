@@ -5,6 +5,8 @@ Copyright ©2021
 : Contributors :
 Aria (Tashia Redrose)
     * February 2021       -       Created oc_cuff_pose
+Paragon (ParagonFanfare)
+    * August 2023         -       Fixed a bug where chains were stopped when standing from furniture
 et al.
 Licensed under the GPLv2. See LICENSE for full details.
 https://github.com/OpenCollarTeam/OpenCollar
