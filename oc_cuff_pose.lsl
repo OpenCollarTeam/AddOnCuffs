@@ -78,6 +78,7 @@ string g_sPendingAnims;
 string g_sPendingCollarChains;
 string g_sPoseName= "";
 string g_sActivePose="";
+string currentAnim="";
 
 list g_lCollarMap = [];
 integer SUMMON_PARTICLES = -58931; // Used only for cuffs to summon particles from one NAMED leash point to another NAMED anchor point
@@ -108,13 +109,21 @@ StartCuffPose(list lParams, integer iSave)
     if(iSave)Link("from_addon", LM_SETTING_SAVE, "occuffs_"+g_sPoseName+"pose="+llList2String(lParams,0), "");
 
     //llSay(0, ".\nENTER StartCuffPose(list[], int)\n{\n\targ0 = "+llDumpList2String(lParams," ~ ")+"\n\targ1 = "+(string)iSave+"\n}\n\nAnimation = "+llList2String(lParams,1));
-    llStartAnimation(llList2String(lParams,1));
+    currentAnim=(llList2String(lParams,1));
+    llStartAnimation(currentAnim);
+    llSetTimerEvent(2.5);
 
     // param 2 = chain options
     list opts = llParseString2List(llList2String(lParams,2), ["~"],[]);
     Summon(opts, llList2String(lParams,4), llList2String(lParams,3));
 }
 
+EndCuffPose(string anm) {
+    llSetTimerEvent(FALSE);
+    g_sCurrentPose="NONE";
+    currentAnim="";
+    llStopAnimation(anm);
+}
 
 Desummon(list lPoints)
 {
@@ -233,8 +242,7 @@ default
                 Link("from_addon", TIMEOUT_REGISTER, "2", g_sPoseName+"playback:"+llStringToBase64(llDumpList2String(lMap, "~~~")));
                 //llSay(0, "Pose selection: "+sMsg+"\nPose params dump: "+llDumpList2String(lMap, ", "));
                 string curAnim = llList2String(g_lPoseMap, llListFindList(g_lPoseMap, [g_sCurrentPose])+1);
-                g_sCurrentPose="NONE";
-                llStopAnimation(curAnim);
+                EndCuffPose(curAnim);
                 return;
             }
             g_sCurrentPose = sMsg;
@@ -246,16 +254,14 @@ default
             list lPoints = llParseString2List(llList2String(g_lPoseMap, index+2),["~"],[]);
             Desummon(lPoints);
             string curAnim = llList2String(g_lPoseMap, index+1);
-            g_sCurrentPose="NONE";
-            llStopAnimation(curAnim);
+            EndCuffPose(curAnim);
         } else if(iNum == 509){ // Signal used to clear the flags in the event of the cuffs being hidden, since no particles should be visible if hidden
             if(g_sCurrentPose!="NONE"){
                 integer index=llListFindList(g_lPoseMap, [g_sCurrentPose]);
                 list lPoints = llParseString2List(llList2String(g_lPoseMap, index+2),["~"],[]);
                 Desummon(lPoints);
                 string curAnim = llList2String(g_lPoseMap, index+1);
-                g_sCurrentPose="NONE";
-                llStopAnimation(curAnim);
+                EndCuffPose(curAnim);
             }
 
             if(g_sActivePose != ""){
@@ -263,6 +269,13 @@ default
             }
         }
     }
+
+    timer()
+    {
+        if(g_sCurrentPose!="NONE" && currentAnim!="") {
+            llStartAnimation(currentAnim);
+        }
+    } 
 
     dataserver(key kID, string sData)
     {
