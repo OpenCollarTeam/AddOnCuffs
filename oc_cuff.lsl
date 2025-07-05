@@ -24,18 +24,6 @@ https://github.com/OpenCollarTeam/OpenCollar
 Visual locking system fix by Safra Nitely (based on togglelock by Aria)
 Cuff locking levels system fix by Safra Nitely (using OC standard levles of locking)
 */
-list StrideOfList(list src, integer stride, integer start, integer end) {
-    list l = [];
-    integer ll = llGetListLength(src);
-    if(start < 0)start += ll;
-    if(end < 0)end += ll;
-    if(end < start) return llList2List(src, start, start);
-    while(start <= end) {
-        l += llList2List(src, start, start);
-        start += stride;
-    }
-    return l;
-}
 
 integer API_CHANNEL = 0x60b97b5e;
 string NEW_VERSION;
@@ -132,20 +120,11 @@ integer g_iFirstInit=TRUE;
 list g_lOptedLM     = [];
 list g_lPoses = [];
 
-
-list g_lMenuIDs;
-integer g_iMenuStride;
-
 string UPMENU = "BACK";
 
 Dialog(key kID, string sPrompt, list lChoices, list lUtilityButtons, integer iPage, integer iAuth, string sName) {
-    key kMenuID = llGenerateKey();
 
-    llRegionSayTo(g_kCollar, API_CHANNEL, llList2Json(JSON_OBJECT, [ "pkt_type", "from_addon", "addon_name", g_sAddon, "iNum", DIALOG, "sMsg", (string)kID + "|" + sPrompt + "|" + (string)iPage + "|" + llDumpList2String(lChoices, "`") + "|" + llDumpList2String(lUtilityButtons, "`") + "|" + (string)iAuth, "kID", kMenuID ]));
-
-    integer iIndex = llListFindList(g_lMenuIDs, [kID]);
-    if (~iIndex) g_lMenuIDs = llListReplaceList(g_lMenuIDs, [ kID, kMenuID, sName ], iIndex, iIndex + g_iMenuStride - 1);
-    else g_lMenuIDs += [kID, kMenuID, sName];
+    llRegionSayTo(g_kCollar, API_CHANNEL, llList2Json(JSON_OBJECT, [ "pkt_type", "from_addon", "addon_name", g_sAddon, "iNum", DIALOG, "sMsg", (string)kID + "|" + sPrompt + "|" + (string)iPage + "|" + llDumpList2String(lChoices, "`") + "|" + llDumpList2String(lUtilityButtons, "`") + "|" + (string)iAuth, "kID", sName+"~"+llGetScriptName() ]));
 }
 
 string lvl_msg =" ";
@@ -164,7 +143,11 @@ Menu(key kID, integer iAuth) {
     if (CMD_LEVEL == 503)cmd_msg = "WEARER";
     if (CMD_LEVEL == 504)cmd_msg = "EVERYONE";
 
-    string sPrompt = "\n[OpenCollar Cuffs]\nMemory: "+(string)llGetFreeMemory()+"b\nVersion: "+g_sVersion+"\n" +"Current command level =" +cmd_msg +"\nYour command level =" +lvl_msg;
+    llScriptProfiler( PROFILE_SCRIPT_MEMORY );
+    string sPrompt = "\n[OpenCollar Cuffs]\n"+"\nVersion: "+g_sVersion+"\n" +"Current command level =" +cmd_msg +"\nYour command level =" +lvl_msg;
+    llScriptProfiler( PROFILE_NONE );
+    sPrompt += "\nMemory: "+(string)llGetSPMaxMemory();
+
     sPrompt += "\nCuff Name: "+g_sAddon+"\n";
 
     if(UPDATE_AVAILABLE)sPrompt+="* An update is available!\n";
@@ -714,15 +697,10 @@ default
                         UserCommand(iNum, sStr, kID);
 
                     }
-                    else if (iNum == DIALOG_TIMEOUT) {
-                        integer iMenuIndex = llListFindList(g_lMenuIDs, [kID]);
-                        g_lMenuIDs = llDeleteSubList(g_lMenuIDs, iMenuIndex - 1, iMenuIndex + 3);  //remove stride from g_lMenuIDs
-                    }
                     else if (iNum == DIALOG_RESPONSE) {
-                        integer iMenuIndex = llListFindList(g_lMenuIDs, [kID]);
-                        if (iMenuIndex != -1) {
-                            string sMenu = llList2String(g_lMenuIDs, iMenuIndex + 1);
-                            g_lMenuIDs = llDeleteSubList(g_lMenuIDs, iMenuIndex - 1, iMenuIndex - 2 + g_iMenuStride);
+                        integer iPos = llSubStringIndex(kID, "~"+llGetScriptName());
+                        if(iPos>0){
+                            string sMenu = llGetSubString(kID, 0, iPos-1);
                             list lMenuParams = llParseString2List(sStr, ["|"], []);
                             key kAv = llList2Key(lMenuParams, 0);
                             string sMsg = llList2String(lMenuParams, 1);
@@ -768,7 +746,7 @@ default
                                 else if (sMsg == "DISCONNECT") {
                                     Link("offline", 0, "", llGetOwnerKey(g_kCollar));
                                     iRespring=FALSE;
-                                    g_lMenuIDs = [];
+//                                    g_lMenuIDs = [];
                                     g_kCollar = NULL_KEY;
                                 }
 
